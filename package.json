@@ -1,0 +1,17 @@
+{
+  "name": "premium-license-management-ui",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --cwd presentation3/web dev",
+    "build": "bun run --cwd presentation3/web build",
+    "start": "bun run --cwd presentation3/web start",
+    "prisma:seed": "bun run --cwd presentation3/web prisma:seed",
+    "prisma:push": "bun run --cwd presentation3/web prisma:push",
+    "prisma:generate": "bun run --cwd presentation3/web prisma:generate",
+    "prisma:studio": "bun run --cwd presentation3/web prisma:studio"
+  },
+  "devDependencies": {
+    "pdf-lib": "^1.17.1",
+    "puppeteer": "^25.12.0"
+  }
+}

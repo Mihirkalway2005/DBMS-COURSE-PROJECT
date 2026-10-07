@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum VendorTier {
+  STRATEGIC
+  PREFERRED
+  STANDARD
+}
+
+enum SoftwareCategory {
+  PRODUCTIVITY
+  DEV_TOOLS
+  SECURITY
+  CLOUD_INFRA
+  DESIGN
+}
+
+enum LicenseType {
+  PERPETUAL
+  SAAS_SUBSCRIPTION
+  SEAT_BASED
+  OEM
+  TRIAL
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUALLY
+  ONE_TIME
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  PENDING_RENEWAL
+}
+
+enum DeviceType {
+  LAPTOP
+  DESKTOP
+  SERVER
+  VM
+}
+
+enum AllocationStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  AT_RISK
+  NON_COMPLIANT
+}
+
+model Vendor {
+  id            Int          @id @default(autoincrement())
+  vendorCode    String       @unique @map("vendor_code") @db.VarChar(50)
+  name          String       @map("name") @db.VarChar(100)
+  contactEmail  String?      @unique @map("contact_email") @db.VarChar(150)
+  website       String?      @map("website") @db.VarChar(255)
+  supportPhone  String?      @map("support_phone") @db.VarChar(50)
+  tier          VendorTier   @default(STANDARD)
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  // Relationships
+  softwareProducts Software[]
+  purchases        Purchase[]
+
+  @@map("vendors")
+}
+
+model Software {
+  id             Int              @id @default(autoincrement())
+  softwareCode   String           @unique @map("software_code") @db.VarChar(50)
+  name           String           @map("name") @db.VarChar(150)
+  category       SoftwareCategory @default(PRODUCTIVITY)
+  currentVersion String           @default("1.0.0") @map("current_version") @db.VarChar(50)
+  vendorId       Int              @map("vendor_id")
+
+  // Relationships
+  vendor    Vendor     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  licenses  License[]
+  purchases Purchase[]
+
+  @@map("software")
+}
+
+model License {
+  id             Int           @id @default(autoincrement())
+  licenseKey     String        @unique @map("license_key") @db.VarChar(128)
+  licenseType    LicenseType   @default(SAAS_SUBSCRIPTION) @map("license_type")
+  totalSeats     Int           @default(1) @map("total_seats")
+  allocatedSeats Int           @default(0) @map("allocated_seats")
+  purchaseDate   DateTime      @default(now()) @map("purchase_date")
+  expiryDate     DateTime      @map("expiry_date")
+  unitCost       Decimal       @default(0.00) @map("unit_cost") @db.Decimal(12, 2)
+  totalCost      Decimal       @default(0.00) @map("total_cost") @db.Decimal(12, 2)
+  billingCycle   BillingCycle  @default(ANNUALLY) @map("billing_cycle")
+  autoRenew      Boolean       @default(false) @map("auto_renew")
+  status         LicenseStatus @default(ACTIVE)
+  softwareId     Int           @map("software_id")
+  purchaseId     Int?          @map("purchase_id")
+
+  // Relationships
+  software     Software            @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  purchase     Purchase?           @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  allocations  LicenseAllocation[]
+  renewalLogs  RenewalLog[]
+  auditRecords AuditRecord[]
+
+  @@map("licenses")
+}
+
+model Department {
+  id             Int      @id @default(autoincrement())
+  deptCode       String   @unique @map("dept_code") @db.VarChar(50)
+  name           String   @unique @map("name") @db.VarChar(100)
+  departmentHead String?  @map("department_head") @db.VarChar(100)
+
+  // Relationships
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Employee {
+  id           Int      @id @default(autoincrement())
+  empCode      String   @unique @map("emp_code") @db.VarChar(50)
+  fullName     String   @map("full_name") @db.VarChar(100)
+  email        String   @unique @map("email") @db.VarChar(150)
+  departmentId Int?     @map("department_id")
+  department   String   @default("Engineering") @db.VarChar(100)
+  role         String   @default("Specialist") @db.VarChar(100)
+
+  // Relationships
+  deptRef     Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  devices     Device[]
+  allocations LicenseAllocation[]
+
+  @@map("employees")
+}
+
+model Device {
+  id           Int        @id @default(autoincrement())
+  assetTag     String     @unique @map("asset_tag") @db.VarChar(50)
+  deviceName   String     @default("Workstation") @map("device_name") @db.VarChar(100)
+  deviceType   DeviceType @default(LAPTOP) @map("device_type")
+  os           String     @default("macOS") @db.VarChar(50)
+  employeeId   Int?       @map("employee_id")
+
+  // Relationships
+  employee    Employee?           @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  allocations LicenseAllocation[]
+
+  @@map("devices")
+}
+
+model LicenseAllocation {
+  id               Int              @id @default(autoincrement())
+  allocationCode   String           @unique @map("allocation_code") @db.VarChar(50)
+  licenseId        Int              @map("license_id")
+  employeeId       Int              @map("employee_id")
+  deviceId         Int?             @map("device_id")
+  allocatedDate    DateTime         @default(now()) @map("allocated_date")
+  status           AllocationStatus @default(ACTIVE)
+  deallocatedDate  DateTime?        @map("deallocated_date")
+  allocatedBy      String           @default("IT Admin") @map("allocated_by") @db.VarChar(100)
+
+  // Relationships
+  license  License   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   Device?   @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("license_allocations")
+}
+
+model RenewalLog {
+  id             Int      @id @default(autoincrement())
+  licenseId      Int      @map("license_id")
+  renewalDate    DateTime @default(now()) @map("renewal_date")
+  nextExpiryDate DateTime @map("next_expiry_date")
+  renewalCost    Decimal  @map("renewal_cost") @db.Decimal(12, 2)
+  invoiceNo      String   @map("invoice_no") @db.VarChar(100)
+  approvedBy     String   @default("Procurement Lead") @map("approved_by") @db.VarChar(100)
+  notes          String?  @db.Text
+
+  // Relationships
+  license License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@map("renewal_logs")
+}
+
+model AuditRecord {
+  id                    Int              @id @default(autoincrement())
+  auditDate             DateTime         @default(now()) @map("audit_date")
+  auditorName           String           @map("auditor_name") @db.VarChar(100)
+  licenseId             Int?             @map("license_id")
+  totalLicensesAudited  Int              @default(1) @map("total_licenses_audited")
+  overAllocatedCount    Int              @default(0) @map("over_allocated_count")
+  complianceStatus      ComplianceStatus @default(COMPLIANT) @map("compliance_status")
+  findings              String           @db.Text
+  actionTaken           String?          @map("action_taken") @db.Text
+
+  // Relationships
+  license License? @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@map("audit_records")
+}
+
+model Purchase {
+  id            Int      @id @default(autoincrement())
+  vendorId      Int      @map("vendor_id")
+  softwareId    Int      @map("software_id")
+  purchaseDate  DateTime @default(now()) @map("purchase_date")
+  quantity      Int      @default(1)
+  invoiceNumber String   @unique @map("invoice_number") @db.VarChar(100)
+
+  // Relationships
+  vendor   Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  software Software  @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  licenses License[]
+
+  @@map("purchases")
+}

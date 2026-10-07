@@ -1,0 +1,10 @@
+{
+  "description": "Streamline software license and subscription management with a centralized system that helps organizations track, govern, and audit licenses effectively.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
